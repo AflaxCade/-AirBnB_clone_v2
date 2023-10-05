@@ -15,7 +15,7 @@ env.hosts = ['34.224.16.126', '54.237.34.32']
 
 @task
 def do_deploy(c, archive_path):
-        """
+    """
         return the archive path if archive has generated correctly.
     """
         
