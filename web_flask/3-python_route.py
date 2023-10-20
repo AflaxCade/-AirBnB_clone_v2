@@ -15,25 +15,23 @@ def hello():
 
 
 @app.route("/hbnb", strict_slashes=False)
-def hello_hbnb():
+def hbnb():
     """Returns a given string"""
     return ("HBNB")
 
 
 @app.route("/c/<text>", strict_slashes=False)
-def c_text(text):
-    text = text.replace('_', ' ')
+def cText(text):
     """display C followed by the value of the text variable"""
-    return f'C {text}'
+    return "C {}".format(text.replace("_", " "))
 
 
-@app.route('/python/', strict_slashes=False)
-@app.route('/python/<text>', strict_slashes=False)
-def python_text(text='is cool'):
-    text = text.replace('_', ' ')
+@app.route('/python', strict_slashes=False)
+@app.route("/python/<text>", strict_slashes=False)
+def pythonText(text="is cool"):
     """display Python followed by the value of the text variable"""
-    return f'Python {text}'
+    return "Python {}".format(text.replace("_", " "))
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=None) 
+    app.run(host="0.0.0.0", port=5000, debug=None)
