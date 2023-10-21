@@ -9,20 +9,19 @@ from models.amenity import Amenity
 from models.place import Place
 from models.review import Review
 
-from sqlalchemy import (create_engine)
-from sqlalchemy.orm import scoped_session
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 from os import environ
 
 
 class DBStorage:
-    """ Storage for database with SQL Alchemy and MySQL """
+    """Storage for database with SQL Alchemy and MySQL"""
     __engine = None
     __session = None
 
     def __init__(self):
-        """ Constructor """
+        """Constructor"""
 
         sqlUser = environ.get('HBNB_MYSQL_USER')
         sqlPwd = environ.get('HBNB_MYSQL_PWD')
@@ -40,7 +39,7 @@ class DBStorage:
     def all(self, cls=None):
         """
         Query on the current database session (self.__session)
-        all objects depending of the class name (argument cls)
+        all objects depending on the class name (argument cls)
         """
 
         session = self.__session
@@ -49,8 +48,8 @@ class DBStorage:
             tables = [User, State, City, Amenity, Place, Review]
 
         else:
-            if type(cls) == str:
-                cls = eval(csl)
+            if isinstance(cls, str):
+                cls = eval(cls)
 
             tables = [cls]
 
@@ -64,24 +63,23 @@ class DBStorage:
         return dic
 
     def new(self, obj):
-        """ add the object to the current database session """
+        """Add the object to the current database session"""
         if obj:
             self.__session.add(obj)
 
     def save(self):
-        """ commit all changes of the current database session """
+        """Commit all changes of the current database session"""
         self.__session.commit()
 
     def delete(self, obj=None):
-        """ delete from module import symbol
-        the current database session obj if not None """
+        """Delete from the current database session obj if not None"""
         if obj:
             self.__session.delete(obj)
 
     def reload(self):
         """
-        creates all tables in the database
-        creates the current database session
+        Create all tables in the database
+        Create the current database session
         """
         Base.metadata.create_all(self.__engine)
         session_factory = sessionmaker(bind=self.__engine,
@@ -91,6 +89,6 @@ class DBStorage:
 
     def close(self):
         """
-        Closes Session
+        Close the session
         """
         self.__session.close()
