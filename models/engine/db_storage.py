@@ -1,103 +1,103 @@
 #!/usr/bin/python3
-"""a module that defines the database storage implementation"""
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy import MetaData
-import os
+"""Database storage engine using SQLAlchemy with a mysql+mysqldb database
+connection.
+"""
 
-user = os.environ.get("HBNB_MYSQL_USER")
-pwd = os.environ.get("HBNB_MYSQL_PWD")
-host = os.environ.get("HBNB_MYSQL_HOST")
-database = os.environ.get("HBNB_MYSQL_DB")
-env = os.environ.get("HBNB_ENV")
+import os
+from models.base_model import Base
+from models.amenity import Amenity
+from models.city import City
+from models.place import Place
+from models.state import State
+from models.review import Review
+from models.user import User
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
+name2class = {
+    'Amenity': Amenity,
+    'City': City,
+    'Place': Place,
+    'State': State,
+    'Review': Review,
+    'User': User
+}
 
 
 class DBStorage:
-    """An implementation of the Database Storage"""
-
+    """Database Storage"""
     __engine = None
     __session = None
-    Session = None
 
     def __init__(self):
-        """the class constructor for the database storage implementation"""
-        self.__engine = create_engine(
-            "mysql+mysqldb://{}:{}@{}/{}".format(user, pwd, host, database),
-            pool_pre_ping=True,
-        )
-        if env == "test":
-            metadata = MetaData()
-            metadata.drop_all(self.__engine, checkfirst=False)
+        """Initializes the object"""
+        user = os.getenv('HBNB_MYSQL_USER')
+        passwd = os.getenv('HBNB_MYSQL_PWD')
+        host = os.getenv('HBNB_MYSQL_HOST')
+        database = os.getenv('HBNB_MYSQL_DB')
+        self.__engine = create_engine('mysql+mysqldb://{}:{}@{}/{}'
+                                      .format(user, passwd, host, database))
+        if os.getenv('HBNB_ENV') == 'test':
+            Base.metadata.drop_all(self.__engine)
 
     def all(self, cls=None):
-        """a public instance method that returns a dictionary
-        consisting of all queried class from the database"""
-        from models.amenity import Amenity
-        from models.user import User
-        from models.place import Place
-        from models.state import State, Base
-        from models.city import City, Base
-        from models.review import Review
-
-        if cls is None:
-            cls = [State, City, User, Place, Review, Amenity]
-            query = []
-            for c in cls:
-                query.extend(self.__session.query(c).all())
+        """returns a dictionary of all the objects present"""
+        if not self.__session:
+            self.reload()
+        objects = {}
+        if type(cls) == str:
+            cls = name2class.get(cls, None)
+        if cls:
+            for obj in self.__session.query(cls):
+                objects[obj.__class__.__name__ + '.' + obj.id] = obj
         else:
-            query = self.__session.query(cls).all()
-        cls_objs = {}
-        for obj in query:
-            cls_objs[obj.to_dict()["__class__"] + "." + obj.id] = obj
-        return cls_objs
+            for cls in name2class.values():
+                for obj in self.__session.query(cls):
+                    objects[obj.__class__.__name__ + '.' + obj.id] = obj
+        return objects
+
+    def reload(self):
+        """reloads objects from the database"""
+        session_factory = sessionmaker(bind=self.__engine,
+                                       expire_on_commit=False)
+        Base.metadata.create_all(self.__engine)
+        self.__session = scoped_session(session_factory)
 
     def new(self, obj):
-        """a public instance method that adds a
-        new object to a pending state of the database transaction"""
+        """creates a new object"""
         self.__session.add(obj)
 
     def save(self):
-        """a public instance method that persists the actions
-        performed in the current transaction"""
+        """saves the current session"""
         self.__session.commit()
 
     def delete(self, obj=None):
-        """a public instance method that deletes a created instance
-        from the database"""
+        """deletes an object"""
+        if not self.__session:
+            self.reload()
         if obj:
             self.__session.delete(obj)
 
-    def call(self, string):
-        """a public instance method used for executing
-        sql commands on the class's engine"""
-        self.__engine.execute(string)
-
-    def start_session(self):
-        """a public instance method used for starting a new session"""
-        self.__session = DBStorage.Session()
-
-    def stop_session(self):
-        """a public instance method used for ending a session"""
-        self.save()
-        self.__session.close()
-
-    def reload(self):
-        """a public instance method that initializes
-        a thread-safe version of a session"""
-        from models.user import User
-        from models.amenity import Amenity
-        from models.place import Place
-        from models.state import State, Base
-        from models.city import City, Base
-        from models.review import Review
-
-        Base.metadata.create_all(self.__engine)
-
-        DBStorage.Session = scoped_session(
-            sessionmaker(bind=self.__engine, expire_on_commit=False)
-        )
-        self.__session = DBStorage.Session()
-
     def close(self):
-        """call remove() method on self.__session"""
-        self.__session.close()
+        """Dispose of current session if active"""
+        self.__session.remove()
+
+    def get(self, cls, id):
+        """Retrieve an object"""
+        if cls is not None and type(cls) is str and id is not None and\
+           type(id) is str and cls in name2class:
+            cls = name2class[cls]
+            result = self.__session.query(cls).filter(cls.id == id).first()
+            return result
+        else:
+            return None
+
+    def count(self, cls=None):
+        """Count number of objects in storage"""
+        total = 0
+        if type(cls) == str and cls in name2class:
+            cls = name2class[cls]
+            total = self.__session.query(cls).count()
+        elif cls is None:
+            for cls in name2class.values():
+                total += self.__session.query(cls).count()
+        return total
